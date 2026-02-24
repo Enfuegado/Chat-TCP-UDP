@@ -35,28 +35,33 @@ public class TCPServer : MonoBehaviour, IServer
 
     private async Task ReceiveLoop()
     {
-        byte[] buffer = new byte[1024];// Buffer to store incoming data from the client 1024 bytes = 1 KB
-        try
-        {
-            while (connectedClient != null && connectedClient.Connected)// Continuously checks if the client is still connected
+        byte[] buffer = new byte[1024];
+
+            try
             {
-                int bytesRead = await networkStream.ReadAsync(buffer, 0, buffer.Length);// Reads data from the network stream asynchronously and stores it in the buffer, returning the number of bytes read
-
-                if (bytesRead == 0)//If the client is disconnected ReadAsync returns 0 bytes read
+                while (connectedClient != null && connectedClient.Connected)
                 {
-                    Debug.Log("[Server] Client disconnected");
-                    break;
-                }
+                    int bytesRead = await networkStream.ReadAsync(buffer, 0, buffer.Length);
 
-                string message = Encoding.UTF8.GetString(buffer, 0, bytesRead);// Converts the received bytes into a string message using UTF-8 encoding
-                Debug.Log("[Server] Received: " + message);
-                OnMessageReceived?.Invoke(message);// Invokes the OnMessageReceived event, passing the received message to any subscribed listeners
+                    if (bytesRead == 0)
+                    {
+                        Debug.Log("[Server] Client disconnected");
+                        break;
+                    }
+
+                    string message = Encoding.UTF8.GetString(buffer, 0, bytesRead);
+                    Debug.Log("[Server] Received: " + message);
+
+                    OnMessageReceived?.Invoke(message);
+
+                    // 🔽 AÑADIR ESTA LÍNEA
+                    await SendMessageAsync(message);
+                }
             }
-        }
-        finally
-        {
-            Disconnect();// Ensures that the connection is closed when the loop ends, whether due to disconnection or an error
-        }
+            finally
+            {
+                Disconnect();
+            }
     }
 
     public async Task SendMessageAsync(string message)
