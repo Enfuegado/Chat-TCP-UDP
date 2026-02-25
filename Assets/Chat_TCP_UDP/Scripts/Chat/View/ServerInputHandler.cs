@@ -2,12 +2,11 @@ using TMPro;
 using UnityEngine;
 using System.IO;
 using System.Threading.Tasks;
+using SFB;
 
 public class ServerInputHandler : MonoBehaviour
 {
     [SerializeField] private TMP_InputField inputField;
-
-    [SerializeField] private string imageFileName = "test.png"; //change name for other image
 
     private ChatController controller;
 
@@ -15,7 +14,6 @@ public class ServerInputHandler : MonoBehaviour
     {
         this.controller = controller;
     }
-
     public async void OnSendButtonClicked()
     {
         if (controller == null)
@@ -30,24 +28,53 @@ public class ServerInputHandler : MonoBehaviour
 
         inputField.text = "";
     }
-
     public async void OnSendImageClicked()
     {
         if (controller == null)
             return;
 
-        string path = Path.Combine(
-            Application.dataPath,
-            "Chat_TCP_UDP/StreamingAssets",
-            imageFileName
+        var extensions = new[]
+        {
+            new ExtensionFilter("Image Files", "png", "jpg", "jpeg")
+        };
+
+        var paths = StandaloneFileBrowser.OpenFilePanel(
+            "Select Image",
+            "",
+            extensions,
+            false
         );
 
-        if (!File.Exists(path))
-        {
-            Debug.LogWarning($"Image not found at: {path}");
+        if (paths == null || paths.Length == 0)
             return;
-        }
+
+        string path = paths[0];
+
+        if (!File.Exists(path))
+            return;
 
         await controller.SendImage(path);
+    }
+    public async void OnAttachFileClicked()
+    {
+        if (controller == null)
+            return;
+
+        var paths = StandaloneFileBrowser.OpenFilePanel(
+            "Select File",
+            "",
+            "",
+            false
+        );
+
+        if (paths == null || paths.Length == 0)
+            return;
+
+        string path = paths[0];
+
+        if (!File.Exists(path))
+            return;
+
+        await controller.SendFile(path);
     }
 }
