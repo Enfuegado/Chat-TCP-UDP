@@ -7,6 +7,7 @@ public class ChatUIView : MonoBehaviour, IChatView
     [SerializeField] private Transform content;
     [SerializeField] private GameObject messagePrefab;
     [SerializeField] private GameObject imagePrefab;
+    [SerializeField] private GameObject filePrefab;
 
     public void DisplayText(string message)
     {
@@ -35,7 +36,20 @@ public class ChatUIView : MonoBehaviour, IChatView
         );
 
         img.sprite = sprite;
-        img.SetNativeSize();
+        img.preserveAspect = true;
+
+        RectTransform contentRect = content as RectTransform;
+        float maxWidth = contentRect.rect.width - 20f; // margen
+
+        float aspectRatio = (float)texture.height / texture.width;
+        float calculatedHeight = maxWidth * aspectRatio;
+
+        LayoutElement layout = imageGO.GetComponent<LayoutElement>();
+        if (layout == null)
+            layout = imageGO.AddComponent<LayoutElement>();
+
+        layout.preferredWidth = maxWidth;
+        layout.preferredHeight = calculatedHeight;
     }
 
     public void DisplayAudio(byte[] data, string fileName)
@@ -45,7 +59,23 @@ public class ChatUIView : MonoBehaviour, IChatView
 
     public void DisplayFile(byte[] data, string fileName)
     {
-        Debug.Log($"[UI] File received ({fileName}) - {data.Length} bytes");
+        if (filePrefab == null)
+        {
+            Debug.LogError("File prefab not assigned in ChatUIView");
+            return;
+        }
+
+        GameObject fileGO = Instantiate(filePrefab, content);
+
+        FileMessageUI fileUI = fileGO.GetComponent<FileMessageUI>();
+
+        if (fileUI == null)
+        {
+            Debug.LogError("FileMessageUI component missing in filePrefab");
+            return;
+        }
+
+        fileUI.Initialize(data, fileName);
     }
 
 }
