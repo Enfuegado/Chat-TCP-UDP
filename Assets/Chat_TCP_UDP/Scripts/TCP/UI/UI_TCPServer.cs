@@ -1,54 +1,72 @@
 using UnityEngine;
 using TMPro;
-using UnityEngine.UI;
 using System;
+using System.Text;
 
 public class TCPServerUI : MonoBehaviour
 {
     public int serverPort = 5555;
+
     [SerializeField] private TCPServer serverReference;
     [SerializeField] private TMP_InputField messageInput;
 
     private IServer _server;
+
     void Awake()
     {
         _server = serverReference;
     }
+
     void Start()
     {
-        _server.OnMessageReceived += HandleMessageReceived;
+        _server.OnPacketReceived += HandlePacketReceived;
         _server.OnConnected += HandleConnection;
         _server.OnDisconnected += HandleDisconnection;
     }
+
     public void StartServer()
     {
         _server.StartServer(serverPort);
     }
+
     public void SendServerMessage()
     {
-        if(!_server.isServerRunning){
+        if (!_server.isServerRunning)
+        {
             Debug.Log("The server is not running");
             return;
         }
 
-        if(messageInput.text == ""){
+        if (string.IsNullOrEmpty(messageInput.text))
+        {
             Debug.Log("The chat entry is empty");
             return;
         }
 
         string message = messageInput.text;
-        _server.SendMessageAsync(message);
+
+        var packet = new NetworkPacket(
+            PacketType.Text,
+            Encoding.UTF8.GetBytes(message)
+        );
+
+        _server.SendMessageAsync(packet);
     }
 
-    void HandleMessageReceived(string text)
+    void HandlePacketReceived(NetworkPacket packet)
     {
-        Debug.Log("[UI-Server] Message received from client: " + text);
+        if (packet.Type == PacketType.Text)
+        {
+            string text = Encoding.UTF8.GetString(packet.Data);
+            Debug.Log("[UI-Server] Message received from client: " + text);
+        }
     }
 
     void HandleConnection()
     {
         Debug.Log("[UI-Server] Client Connected to Server");
     }
+
     void HandleDisconnection()
     {
         Debug.Log("[UI-Server] Client Disconnect from Server");

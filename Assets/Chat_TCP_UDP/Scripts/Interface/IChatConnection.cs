@@ -3,10 +3,10 @@ using System.Threading.Tasks;
 
 public interface IChatConnection
 {
-    event Action<string> OnMessageReceived;
+    event Action<NetworkPacket> OnPacketReceived;
     event Action OnConnected;
     event Action OnDisconnected;
 
-    public Task SendMessageAsync(string message);
-    public void Disconnect();
+    Task SendMessageAsync(NetworkPacket packet);
+    void Disconnect();
 }
