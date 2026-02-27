@@ -9,4 +9,7 @@ public interface IChatConnection
 
     Task SendMessageAsync(NetworkPacket packet);
     void Disconnect();
+
+    bool HasPayloadSizeLimit { get; }
+    int MaxPayloadSize { get; }
 }

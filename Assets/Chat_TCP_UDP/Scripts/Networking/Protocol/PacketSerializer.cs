@@ -70,4 +70,25 @@ public static class PacketSerializer
 
         return buffer;
     }
+    public static NetworkPacket Deserialize(byte[] buffer)
+{
+    using var ms = new MemoryStream(buffer);
+    using var reader = new BinaryReader(ms);
+
+    PacketType type = (PacketType)reader.ReadByte();
+
+    int nameLength = reader.ReadInt32();
+    string fileName = null;
+
+    if (nameLength > 0)
+    {
+        byte[] nameBytes = reader.ReadBytes(nameLength);
+        fileName = Encoding.UTF8.GetString(nameBytes);
+    }
+
+    int dataLength = reader.ReadInt32();
+    byte[] data = reader.ReadBytes(dataLength);
+
+    return new NetworkPacket(type, data, fileName);
+}
 }

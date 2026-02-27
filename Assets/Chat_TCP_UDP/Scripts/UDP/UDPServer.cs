@@ -6,6 +6,8 @@ using UnityEngine;
 
 public class UDPServer : MonoBehaviour, IServer
 {
+    public bool HasPayloadSizeLimit => true;
+    public int MaxPayloadSize => 60 * 1024;
     private UdpClient udpServer;
     private IPEndPoint remoteEndPoint;
 
@@ -18,57 +20,52 @@ public class UDPServer : MonoBehaviour, IServer
     public Task StartServer(int port)
     {
         udpServer = new UdpClient(port);
-        Debug.Log("[Server] UDP Server started. Waiting for messages...");
         isServerRunning = true;
+
+        Debug.Log("[UDP Server] Started on port " + port);
 
         _ = ReceiveLoop();
         return Task.CompletedTask;
     }
 
-    private async Task ReceiveLoop()
+private async Task ReceiveLoop()
+{
+    try
     {
-        try
+        while (isServerRunning)
         {
-            while (isServerRunning)
+            UdpReceiveResult result = await udpServer.ReceiveAsync();
+            remoteEndPoint = result.RemoteEndPoint;
+
+            NetworkPacket packet = PacketSerializer.Deserialize(result.Buffer);
+
+            if (packet.Type == PacketType.Text)
             {
-                UdpReceiveResult result = await udpServer.ReceiveAsync();
-                remoteEndPoint = result.RemoteEndPoint;
+                string text = System.Text.Encoding.UTF8.GetString(packet.Data);
 
-                // 🔹 Deserializar paquete
-                NetworkPacket packet = DeserializePacket(result.Buffer);
-
-                // 🔹 Handshake especial solo para texto CONNECT
-                if (packet.Type == PacketType.Text)
+                if (text == "CONNECT")
                 {
-                    string text = System.Text.Encoding.UTF8.GetString(packet.Data);
-
-                    if (text == "CONNECT")
-                    {
-                        Debug.Log("[Server] Client connected: " + remoteEndPoint);
-
-                        var responsePacket = new NetworkPacket(
-                            PacketType.Text,
-                            System.Text.Encoding.UTF8.GetBytes("CONNECTED")
-                        );
-
-                        await SendMessageAsync(responsePacket);
-                        OnConnected?.Invoke();
-                        continue;
-                    }
+                    Debug.Log("[UDP Server] Client registered: " + remoteEndPoint);
+                    continue;
                 }
-
-                OnPacketReceived?.Invoke(packet);
             }
-        }
-        catch (Exception ex)
-        {
-            Debug.LogWarning($"[UDP Server] Receive loop stopped: {ex.Message}");
-        }
-        finally
-        {
-            Disconnect();
+
+            OnPacketReceived?.Invoke(packet);
         }
     }
+    catch (ObjectDisposedException)
+    {
+
+    }
+    catch (Exception ex)
+    {
+        Debug.LogWarning("[UDP Server] Receive loop stopped: " + ex.Message);
+    }
+    finally
+    {
+        Disconnect();
+    }
+}
 
     public async Task SendMessageAsync(NetworkPacket packet)
     {
@@ -81,10 +78,7 @@ public class UDPServer : MonoBehaviour, IServer
 
     private NetworkPacket DeserializePacket(byte[] buffer)
     {
-        using (var stream = new System.IO.MemoryStream(buffer))
-        {
-            return PacketSerializer.DeserializeAsync(stream).Result;
-        }
+        return PacketSerializer.Deserialize(buffer);
     }
 
     public void Disconnect()
@@ -98,7 +92,7 @@ public class UDPServer : MonoBehaviour, IServer
         udpServer?.Dispose();
         udpServer = null;
 
-        Debug.Log("[Server] UDP Disconnected");
+        Debug.Log("[UDP Server] Disconnected");
         OnDisconnected?.Invoke();
     }
 

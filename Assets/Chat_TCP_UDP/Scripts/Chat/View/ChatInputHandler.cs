@@ -1,10 +1,10 @@
-using TMPro;
 using UnityEngine;
+using TMPro;
 using System.IO;
 using System.Threading.Tasks;
 using SFB;
 
-public class ServerInputHandler : MonoBehaviour
+public class ChatInputHandler : MonoBehaviour
 {
     [SerializeField] private TMP_InputField inputField;
 

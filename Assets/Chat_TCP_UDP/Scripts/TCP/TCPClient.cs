@@ -5,6 +5,8 @@ using UnityEngine;
 
 public class TCPClient : MonoBehaviour, IClient
 {
+    public bool HasPayloadSizeLimit => false;
+    public int MaxPayloadSize => int.MaxValue;
     private TcpClient tcpClient;
     private NetworkStream networkStream;
 

@@ -1,10 +1,10 @@
 using UnityEngine;
 
-public class ServerBootstrapper : MonoBehaviour
+public class TCPServerBootstrapper : MonoBehaviour
 {
     [SerializeField] private TCPServer tcpServer;
     [SerializeField] private ChatUIView chatUIView;
-    [SerializeField] private ServerInputHandler inputHandler;
+    [SerializeField] private ChatInputHandler inputHandler;
 
     private ChatController controller;
 

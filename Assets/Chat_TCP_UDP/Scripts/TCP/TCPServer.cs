@@ -6,6 +6,8 @@ using UnityEngine;
 
 public class TCPServer : MonoBehaviour, IServer
 {
+    public bool HasPayloadSizeLimit => false;
+    public int MaxPayloadSize => int.MaxValue;
     private TcpListener tcpListener;
     private TcpClient connectedClient;
     private NetworkStream networkStream;

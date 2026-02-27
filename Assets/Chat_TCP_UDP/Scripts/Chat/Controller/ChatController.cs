@@ -2,6 +2,7 @@ using System;
 using System.Text;
 using System.Threading.Tasks;
 using System.IO;
+using UnityEngine;
 
 public class ChatController
 {
@@ -14,6 +15,14 @@ public class ChatController
         this.view = view;
 
         connection.OnPacketReceived += HandlePacketReceived;
+    }
+
+    public async Task Connect(string ip, int port)
+    {
+        if (connection is IClient client)
+        {
+            await client.ConnectToServer(ip, port);
+        }
     }
 
     public async Task SendTextMessage(string message)
@@ -37,22 +46,41 @@ public class ChatController
             return;
 
         byte[] data = await File.ReadAllBytesAsync(path);
+
+        if (connection.HasPayloadSizeLimit && data.Length > connection.MaxPayloadSize)
+        {
+            Debug.LogWarning("Payload is too large for this protocol.");
+            return;
+        }
+
         string fileName = Path.GetFileName(path);
 
         var packet = new NetworkPacket(PacketType.Image, data, fileName);
 
         view.DisplayImage(data);
+
         await connection.SendMessageAsync(packet);
     }
 
     public async Task SendFile(string path)
     {
-        byte[] data = File.ReadAllBytes(path);
+        if (!File.Exists(path))
+            return;
+
+        byte[] data = await File.ReadAllBytesAsync(path);
+
+        if (connection.HasPayloadSizeLimit && data.Length > connection.MaxPayloadSize)
+        {
+            Debug.LogWarning("Payload is too large for this protocol.");
+            return;
+        }
+
         string fileName = Path.GetFileName(path);
 
         var packet = new NetworkPacket(PacketType.File, data, fileName);
 
         view.DisplayFile(data, fileName);
+
         await connection.SendMessageAsync(packet);
     }
 
