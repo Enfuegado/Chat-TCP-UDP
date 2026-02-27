@@ -103,9 +103,6 @@ public class ChatController
                     view.DisplayFile(packet.Data, packet.FileName);
                     break;
 
-                case PacketType.Audio:
-                    view.DisplayAudio(packet.Data, packet.FileName);
-                    break;
             }
         });
     }
