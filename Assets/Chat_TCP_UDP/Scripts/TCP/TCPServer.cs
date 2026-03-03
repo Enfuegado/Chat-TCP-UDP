@@ -8,11 +8,11 @@ public class TCPServer : MonoBehaviour, IServer
 {
     public bool HasPayloadSizeLimit => false;
     public int MaxPayloadSize => int.MaxValue;
+    public bool IsConnected { get; private set; }
+
     private TcpListener tcpListener;
     private TcpClient connectedClient;
     private NetworkStream networkStream;
-
-    public bool isServerRunning { get; private set; }
 
     public event Action<NetworkPacket> OnPacketReceived;
     public event Action OnConnected;
@@ -24,13 +24,13 @@ public class TCPServer : MonoBehaviour, IServer
         tcpListener.Start();
 
         Debug.Log("[Server] TCP Server started, waiting for connections...");
-        isServerRunning = true;
 
         connectedClient = await tcpListener.AcceptTcpClientAsync();
-        Debug.Log("[Server] Client connected: " + connectedClient.Client.RemoteEndPoint);
+        networkStream = connectedClient.GetStream();
+
+        IsConnected = true;
         OnConnected?.Invoke();
 
-        networkStream = connectedClient.GetStream();
         _ = ReceiveLoop();
     }
 
@@ -38,12 +38,12 @@ public class TCPServer : MonoBehaviour, IServer
     {
         try
         {
-            while (connectedClient != null && connectedClient.Connected)
+            while (IsConnected && connectedClient != null && connectedClient.Connected)
             {
-                NetworkPacket packet = await PacketSerializer.DeserializeAsync(networkStream);
+                NetworkPacket packet =
+                    await PacketSerializer.DeserializeAsync(networkStream);
 
                 OnPacketReceived?.Invoke(packet);
-
             }
         }
         catch (Exception ex)
@@ -58,11 +58,8 @@ public class TCPServer : MonoBehaviour, IServer
 
     public async Task SendMessageAsync(NetworkPacket packet)
     {
-        if (networkStream == null || connectedClient == null || !connectedClient.Connected)
-        {
-            Debug.Log("[Server] No client connected");
+        if (!IsConnected || networkStream == null)
             return;
-        }
 
         byte[] data = PacketSerializer.Serialize(packet);
         await networkStream.WriteAsync(data, 0, data.Length);
@@ -70,15 +67,19 @@ public class TCPServer : MonoBehaviour, IServer
 
     public void Disconnect()
     {
-        networkStream?.Close();
-        connectedClient?.Close();
-        tcpListener?.Stop();
+        if (!IsConnected && tcpListener == null)
+            return;
+
+        IsConnected = false; 
+
+        try { networkStream?.Close(); } catch { }
+        try { connectedClient?.Close(); } catch { }
+        try { tcpListener?.Stop(); } catch { }
 
         networkStream = null;
         connectedClient = null;
         tcpListener = null;
 
-        Debug.Log("[Server] TCP Disconnected");
         OnDisconnected?.Invoke();
     }
 

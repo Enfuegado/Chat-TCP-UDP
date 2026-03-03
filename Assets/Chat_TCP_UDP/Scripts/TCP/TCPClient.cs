@@ -7,36 +7,53 @@ public class TCPClient : MonoBehaviour, IClient
 {
     public bool HasPayloadSizeLimit => false;
     public int MaxPayloadSize => int.MaxValue;
+
     private TcpClient tcpClient;
     private NetworkStream networkStream;
 
-    public bool isConnected { get; private set; }
+    public bool IsConnected { get; private set; }
 
     public event Action<NetworkPacket> OnPacketReceived;
     public event Action OnConnected;
     public event Action OnDisconnected;
+    public event Action<string> OnError;
 
     public async Task ConnectToServer(string ip, int port)
     {
-        tcpClient = new TcpClient();
-        await tcpClient.ConnectAsync(ip, port);
+        if (IsConnected)
+            return;
 
-        networkStream = tcpClient.GetStream();
-        isConnected = true;
+        try
+        {
+            tcpClient = new TcpClient();
+            await tcpClient.ConnectAsync(ip, port);
 
-        Debug.Log("[Client] Connected to server");
-        OnConnected?.Invoke();
+            networkStream = tcpClient.GetStream();
+            IsConnected = true;
 
-        _ = ReceiveLoop();
+            Debug.Log("[Client] Connected to server");
+            OnConnected?.Invoke();
+
+            _ = ReceiveLoop();
+        }
+        catch (Exception ex)
+        {
+            OnError?.Invoke("Connection failed.");
+            Debug.LogWarning(ex.Message);
+
+            Cleanup();
+        }
     }
 
     private async Task ReceiveLoop()
     {
         try
         {
-            while (tcpClient != null && tcpClient.Connected)
+            while (IsConnected && tcpClient != null && tcpClient.Connected)
             {
-                NetworkPacket packet = await PacketSerializer.DeserializeAsync(networkStream);
+                NetworkPacket packet =
+                    await PacketSerializer.DeserializeAsync(networkStream);
+
                 OnPacketReceived?.Invoke(packet);
             }
         }
@@ -52,31 +69,44 @@ public class TCPClient : MonoBehaviour, IClient
 
     public async Task SendMessageAsync(NetworkPacket packet)
     {
-        if (!isConnected || networkStream == null)
+        if (!IsConnected || networkStream == null)
         {
-            Debug.Log("[Client] Not connected to server");
+            OnError?.Invoke("You must connect before sending a message.");
             return;
         }
 
-        byte[] data = PacketSerializer.Serialize(packet);
-        await networkStream.WriteAsync(data, 0, data.Length);
+        try
+        {
+            byte[] data = PacketSerializer.Serialize(packet);
+            await networkStream.WriteAsync(data, 0, data.Length);
+        }
+        catch (Exception ex)
+        {
+            Debug.LogWarning($"[Client] Send failed: {ex.Message}");
+            Disconnect();
+        }
     }
 
     public void Disconnect()
     {
-        if (!isConnected)
+        if (!IsConnected)
             return;
 
-        isConnected = false;
+        IsConnected = false;
 
-        networkStream?.Close();
-        tcpClient?.Close();
-
-        networkStream = null;
-        tcpClient = null;
+        Cleanup();
 
         Debug.Log("[Client] Disconnected");
         OnDisconnected?.Invoke();
+    }
+
+    private void Cleanup()
+    {
+        try { networkStream?.Close(); } catch { }
+        try { tcpClient?.Close(); } catch { }
+
+        networkStream = null;
+        tcpClient = null;
     }
 
     private void OnDestroy()

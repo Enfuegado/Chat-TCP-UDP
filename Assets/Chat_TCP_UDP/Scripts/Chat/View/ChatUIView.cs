@@ -9,6 +9,9 @@ public class ChatUIView : MonoBehaviour, IChatView
     [SerializeField] private GameObject imagePrefab;
     [SerializeField] private GameObject filePrefab;
 
+    [Header("Error Popup")]
+    [SerializeField] private ErrorPopupUI errorPopup;
+
     public void DisplayText(string message)
     {
         GameObject newMessage = Instantiate(messagePrefab, content);
@@ -39,7 +42,7 @@ public class ChatUIView : MonoBehaviour, IChatView
         img.preserveAspect = true;
 
         RectTransform contentRect = content as RectTransform;
-        float maxWidth = contentRect.rect.width - 20f; // margen
+        float maxWidth = contentRect.rect.width - 20f;
 
         float aspectRatio = (float)texture.height / texture.width;
         float calculatedHeight = maxWidth * aspectRatio;
@@ -50,11 +53,6 @@ public class ChatUIView : MonoBehaviour, IChatView
 
         layout.preferredWidth = maxWidth;
         layout.preferredHeight = calculatedHeight;
-    }
-
-    public void DisplayAudio(byte[] data, string fileName)
-    {
-        Debug.Log($"[UI] Audio received ({fileName}) - {data.Length} bytes");
     }
 
     public void DisplayFile(byte[] data, string fileName)
@@ -78,4 +76,14 @@ public class ChatUIView : MonoBehaviour, IChatView
         fileUI.Initialize(data, fileName);
     }
 
+    public void ShowError(string message)
+    {
+        if (errorPopup == null)
+        {
+            Debug.LogError("ErrorPopupUI not assigned in ChatUIView");
+            return;
+        }
+
+        errorPopup.Show(message);
+    }
 }

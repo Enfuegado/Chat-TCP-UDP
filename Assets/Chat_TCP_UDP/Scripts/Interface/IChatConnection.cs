@@ -6,6 +6,7 @@ public interface IChatConnection
     event Action<NetworkPacket> OnPacketReceived;
     event Action OnConnected;
     event Action OnDisconnected;
+    bool IsConnected { get; }
 
     Task SendMessageAsync(NetworkPacket packet);
     void Disconnect();

@@ -8,10 +8,11 @@ public class UDPClient : MonoBehaviour, IClient
 {
     public bool HasPayloadSizeLimit => true;
     public int MaxPayloadSize => 60 * 1024;
+
+    public bool IsConnected { get; private set; }
+
     private UdpClient udpClient;
     private IPEndPoint remoteEndPoint;
-
-    public bool isConnected { get; private set; }
 
     public event Action<NetworkPacket> OnPacketReceived;
     public event Action OnConnected;
@@ -19,15 +20,13 @@ public class UDPClient : MonoBehaviour, IClient
 
     public async Task ConnectToServer(string ipAddress, int port)
     {
-        if (isConnected)
+        if (IsConnected)
             return;
 
         udpClient = new UdpClient();
         remoteEndPoint = new IPEndPoint(IPAddress.Parse(ipAddress), port);
 
-        isConnected = true;
-
-        Debug.Log("[UDP Client] Ready to communicate with server");
+        IsConnected = true;
 
         _ = ReceiveLoop();
 
@@ -46,18 +45,18 @@ public class UDPClient : MonoBehaviour, IClient
     {
         try
         {
-            while (isConnected)
+            while (IsConnected)
             {
                 UdpReceiveResult result = await udpClient.ReceiveAsync();
 
-                NetworkPacket packet = PacketSerializer.Deserialize(result.Buffer);
+                NetworkPacket packet =
+                    PacketSerializer.Deserialize(result.Buffer);
 
                 OnPacketReceived?.Invoke(packet);
             }
         }
         catch (ObjectDisposedException)
         {
-
         }
         catch (Exception ex)
         {
@@ -71,28 +70,27 @@ public class UDPClient : MonoBehaviour, IClient
 
     public async Task SendMessageAsync(NetworkPacket packet)
     {
-        if (!isConnected || udpClient == null)
-        {
-            Debug.Log("[UDP Client] Not connected.");
+        if (!IsConnected || udpClient == null)
             return;
-        }
 
         byte[] data = PacketSerializer.Serialize(packet);
+
+        if (data.Length > MaxPayloadSize)
+            return;
 
         await udpClient.SendAsync(data, data.Length, remoteEndPoint);
     }
 
     public void Disconnect()
     {
-        if (!isConnected)
+        if (!IsConnected)
             return;
 
-        isConnected = false;
+        IsConnected = false;
 
         udpClient?.Close();
         udpClient = null;
 
-        Debug.Log("[UDP Client] Disconnected");
         OnDisconnected?.Invoke();
     }
 
