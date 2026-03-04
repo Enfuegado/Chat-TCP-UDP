@@ -6,25 +6,45 @@ using UnityEngine;
 
 public class UDPServer : MonoBehaviour, IServer
 {
-    public bool HasPayloadSizeLimit => true;
-    public int MaxPayloadSize => 60 * 1024;
+    private const int MaxPayloadSize = 60 * 1024;
 
     public bool IsConnected { get; private set; }
 
     private UdpClient udpServer;
     private IPEndPoint remoteEndPoint;
 
+    private bool isStarting;
+
     public event Action<NetworkPacket> OnPacketReceived;
     public event Action OnConnected;
     public event Action OnDisconnected;
+    public event Action<string> OnError;
 
     public Task StartServer(int port)
     {
-        udpServer = new UdpClient(port);
-        IsConnected = true;
+        if (IsConnected || isStarting)
+            return Task.CompletedTask;
 
-        _ = ReceiveLoop();
-        OnConnected?.Invoke();
+        isStarting = true;
+
+        try
+        {
+            udpServer = new UdpClient(port);
+            IsConnected = true;
+
+            _ = ReceiveLoop();
+            OnConnected?.Invoke();
+        }
+        catch (Exception ex)
+        {
+            OnError?.Invoke("Failed to start UDP server.");
+            Debug.LogWarning(ex.Message);
+            Disconnect();
+        }
+        finally
+        {
+            isStarting = false;
+        }
 
         return Task.CompletedTask;
     }
@@ -41,14 +61,8 @@ public class UDPServer : MonoBehaviour, IServer
                 NetworkPacket packet =
                     PacketSerializer.Deserialize(result.Buffer);
 
-                if (packet.Type == PacketType.Text)
-                {
-                    string text =
-                        System.Text.Encoding.UTF8.GetString(packet.Data);
-
-                    if (text == "CONNECT")
-                        continue;
-                }
+                if (packet.Type == PacketType.Connect)
+                    continue;
 
                 OnPacketReceived?.Invoke(packet);
             }
@@ -58,6 +72,7 @@ public class UDPServer : MonoBehaviour, IServer
         }
         catch (Exception ex)
         {
+            OnError?.Invoke("Connection lost.");
             Debug.LogWarning("[UDP Server] Receive loop stopped: " + ex.Message);
         }
         finally
@@ -69,22 +84,32 @@ public class UDPServer : MonoBehaviour, IServer
     public async Task SendMessageAsync(NetworkPacket packet)
     {
         if (!IsConnected || remoteEndPoint == null)
-            return;
+            throw new InvalidOperationException("UDP server is not ready.");
 
         byte[] data = PacketSerializer.Serialize(packet);
 
         if (data.Length > MaxPayloadSize)
-            return;
+            throw new InvalidOperationException("File exceeds protocol size limit (60KB).");
 
-        await udpServer.SendAsync(data, data.Length, remoteEndPoint);
+        try
+        {
+            await udpServer.SendAsync(data, data.Length, remoteEndPoint);
+        }
+        catch (Exception ex)
+        {
+            OnError?.Invoke("Failed to send message.");
+            Debug.LogWarning(ex.Message);
+            Disconnect();
+        }
     }
 
     public void Disconnect()
     {
-        if (!IsConnected)
+        if (!IsConnected && !isStarting)
             return;
 
         IsConnected = false;
+        isStarting = false;
 
         udpServer?.Close();
         udpServer?.Dispose();

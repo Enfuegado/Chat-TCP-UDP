@@ -5,11 +5,10 @@ using UnityEngine;
 
 public class TCPClient : MonoBehaviour, IClient
 {
-    public bool HasPayloadSizeLimit => false;
-    public int MaxPayloadSize => int.MaxValue;
-
     private TcpClient tcpClient;
     private NetworkStream networkStream;
+
+    private bool isConnecting;
 
     public bool IsConnected { get; private set; }
 
@@ -20,8 +19,10 @@ public class TCPClient : MonoBehaviour, IClient
 
     public async Task ConnectToServer(string ip, int port)
     {
-        if (IsConnected)
+        if (IsConnected || isConnecting)
             return;
+
+        isConnecting = true;
 
         try
         {
@@ -40,8 +41,11 @@ public class TCPClient : MonoBehaviour, IClient
         {
             OnError?.Invoke("Connection failed.");
             Debug.LogWarning(ex.Message);
-
             Cleanup();
+        }
+        finally
+        {
+            isConnecting = false;
         }
     }
 
@@ -59,6 +63,7 @@ public class TCPClient : MonoBehaviour, IClient
         }
         catch (Exception ex)
         {
+            OnError?.Invoke("Connection lost.");
             Debug.LogWarning($"[Client] Receive loop stopped: {ex.Message}");
         }
         finally
@@ -70,10 +75,7 @@ public class TCPClient : MonoBehaviour, IClient
     public async Task SendMessageAsync(NetworkPacket packet)
     {
         if (!IsConnected || networkStream == null)
-        {
-            OnError?.Invoke("You must connect before sending a message.");
-            return;
-        }
+            throw new InvalidOperationException("TCP client is not connected.");
 
         try
         {
@@ -82,17 +84,19 @@ public class TCPClient : MonoBehaviour, IClient
         }
         catch (Exception ex)
         {
-            Debug.LogWarning($"[Client] Send failed: {ex.Message}");
+            OnError?.Invoke("Failed to send message.");
+            Debug.LogWarning(ex.Message);
             Disconnect();
         }
     }
 
     public void Disconnect()
     {
-        if (!IsConnected)
+        if (!IsConnected && tcpClient == null)
             return;
 
         IsConnected = false;
+        isConnecting = false;
 
         Cleanup();
 

@@ -6,32 +6,51 @@ using UnityEngine;
 
 public class TCPServer : MonoBehaviour, IServer
 {
-    public bool HasPayloadSizeLimit => false;
-    public int MaxPayloadSize => int.MaxValue;
     public bool IsConnected { get; private set; }
 
     private TcpListener tcpListener;
     private TcpClient connectedClient;
     private NetworkStream networkStream;
 
+    private bool isStarting;
+
     public event Action<NetworkPacket> OnPacketReceived;
     public event Action OnConnected;
     public event Action OnDisconnected;
+    public event Action<string> OnError;
 
     public async Task StartServer(int port)
     {
-        tcpListener = new TcpListener(IPAddress.Any, port);
-        tcpListener.Start();
+        if (IsConnected || isStarting)
+            return;
 
-        Debug.Log("[Server] TCP Server started, waiting for connections...");
+        isStarting = true;
 
-        connectedClient = await tcpListener.AcceptTcpClientAsync();
-        networkStream = connectedClient.GetStream();
+        try
+        {
+            tcpListener = new TcpListener(IPAddress.Any, port);
+            tcpListener.Start();
 
-        IsConnected = true;
-        OnConnected?.Invoke();
+            Debug.Log("[Server] TCP Server started, waiting for connections...");
 
-        _ = ReceiveLoop();
+            connectedClient = await tcpListener.AcceptTcpClientAsync();
+            networkStream = connectedClient.GetStream();
+
+            IsConnected = true;
+            OnConnected?.Invoke();
+
+            _ = ReceiveLoop();
+        }
+        catch (Exception ex)
+        {
+            OnError?.Invoke("Server failed to start.");
+            Debug.LogWarning(ex.Message);
+            Disconnect();
+        }
+        finally
+        {
+            isStarting = false;
+        }
     }
 
     private async Task ReceiveLoop()
@@ -48,6 +67,7 @@ public class TCPServer : MonoBehaviour, IServer
         }
         catch (Exception ex)
         {
+            OnError?.Invoke("Connection lost.");
             Debug.LogWarning($"[TCP Server] Receive loop stopped: {ex.Message}");
         }
         finally
@@ -59,18 +79,28 @@ public class TCPServer : MonoBehaviour, IServer
     public async Task SendMessageAsync(NetworkPacket packet)
     {
         if (!IsConnected || networkStream == null)
-            return;
+            throw new InvalidOperationException("TCP server is not connected.");
 
-        byte[] data = PacketSerializer.Serialize(packet);
-        await networkStream.WriteAsync(data, 0, data.Length);
+        try
+        {
+            byte[] data = PacketSerializer.Serialize(packet);
+            await networkStream.WriteAsync(data, 0, data.Length);
+        }
+        catch (Exception ex)
+        {
+            OnError?.Invoke("Failed to send message.");
+            Debug.LogWarning(ex.Message);
+            Disconnect();
+        }
     }
 
     public void Disconnect()
     {
-        if (!IsConnected && tcpListener == null)
+        if (!IsConnected && tcpListener == null && !isStarting)
             return;
 
-        IsConnected = false; 
+        IsConnected = false;
+        isStarting = false;
 
         try { networkStream?.Close(); } catch { }
         try { connectedClient?.Close(); } catch { }

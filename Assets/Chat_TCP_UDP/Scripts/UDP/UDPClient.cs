@@ -6,39 +6,55 @@ using UnityEngine;
 
 public class UDPClient : MonoBehaviour, IClient
 {
-    public bool HasPayloadSizeLimit => true;
-    public int MaxPayloadSize => 60 * 1024;
+    private const int MaxPayloadSize = 60 * 1024;
 
     public bool IsConnected { get; private set; }
 
     private UdpClient udpClient;
     private IPEndPoint remoteEndPoint;
 
+    private bool isConnecting;
+
     public event Action<NetworkPacket> OnPacketReceived;
     public event Action OnConnected;
     public event Action OnDisconnected;
+    public event Action<string> OnError;
 
     public async Task ConnectToServer(string ipAddress, int port)
     {
-        if (IsConnected)
+        if (IsConnected || isConnecting)
             return;
 
-        udpClient = new UdpClient();
-        remoteEndPoint = new IPEndPoint(IPAddress.Parse(ipAddress), port);
+        isConnecting = true;
 
-        IsConnected = true;
+        try
+        {
+            udpClient = new UdpClient();
+            remoteEndPoint = new IPEndPoint(IPAddress.Parse(ipAddress), port);
 
-        _ = ReceiveLoop();
+            IsConnected = true;
 
-        var connectPacket = new NetworkPacket(
-            PacketType.Text,
-            System.Text.Encoding.UTF8.GetBytes("CONNECT"),
-            null
-        );
+            _ = ReceiveLoop();
 
-        await SendMessageAsync(connectPacket);
+            var connectPacket = new NetworkPacket(
+                PacketType.Connect,
+                Array.Empty<byte>()
+            );
 
-        OnConnected?.Invoke();
+            await SendMessageAsync(connectPacket);
+
+            OnConnected?.Invoke();
+        }
+        catch (Exception ex)
+        {
+            OnError?.Invoke("Failed to connect.");
+            Debug.LogWarning(ex.Message);
+            Disconnect();
+        }
+        finally
+        {
+            isConnecting = false;
+        }
     }
 
     private async Task ReceiveLoop()
@@ -60,6 +76,7 @@ public class UDPClient : MonoBehaviour, IClient
         }
         catch (Exception ex)
         {
+            OnError?.Invoke("Connection lost.");
             Debug.LogWarning($"[UDP Client] Receive loop stopped: {ex.Message}");
         }
         finally
@@ -71,22 +88,32 @@ public class UDPClient : MonoBehaviour, IClient
     public async Task SendMessageAsync(NetworkPacket packet)
     {
         if (!IsConnected || udpClient == null)
-            return;
+            throw new InvalidOperationException("UDP client is not connected.");
 
         byte[] data = PacketSerializer.Serialize(packet);
 
         if (data.Length > MaxPayloadSize)
-            return;
+            throw new InvalidOperationException("File exceeds protocol size limit (60KB).");
 
-        await udpClient.SendAsync(data, data.Length, remoteEndPoint);
+        try
+        {
+            await udpClient.SendAsync(data, data.Length, remoteEndPoint);
+        }
+        catch (Exception ex)
+        {
+            OnError?.Invoke("Failed to send message.");
+            Debug.LogWarning(ex.Message);
+            Disconnect();
+        }
     }
 
     public void Disconnect()
     {
-        if (!IsConnected)
+        if (!IsConnected && !isConnecting)
             return;
 
         IsConnected = false;
+        isConnecting = false;
 
         udpClient?.Close();
         udpClient = null;

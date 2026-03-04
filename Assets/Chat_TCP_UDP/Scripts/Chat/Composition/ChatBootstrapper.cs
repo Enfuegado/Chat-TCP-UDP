@@ -9,7 +9,7 @@ public class ChatBootstrapper : MonoBehaviour
     public GameObject udpClientPrefab;
     public GameObject udpServerPrefab;
 
-    private List<GameObject> activeInstances = new List<GameObject>();
+    private readonly List<GameObject> activeInstances = new List<GameObject>();
 
     void Start()
     {
@@ -56,6 +56,27 @@ public class ChatBootstrapper : MonoBehaviour
             ? ProtocolType.UDP
             : ProtocolType.TCP;
 
+        StartCoroutine(SwitchAfterCleanup());
+    }
+
+    public void ReturnToMenu()
+    {
+        StartCoroutine(ReturnAfterCleanup());
+    }
+
+    private IEnumerator SwitchAfterCleanup()
+    {
+        foreach (var instance in activeInstances)
+        {
+            if (instance != null)
+            {
+                var connection = instance.GetComponent<IChatConnection>();
+                connection?.Disconnect();
+            }
+        }
+
+        yield return null;
+
         foreach (var instance in activeInstances)
         {
             if (instance != null)
@@ -73,8 +94,20 @@ public class ChatBootstrapper : MonoBehaviour
             StartCoroutine(StartLocalTest());
         }
     }
-    public void ReturnToMenu()
+
+    private IEnumerator ReturnAfterCleanup()
     {
+        foreach (var instance in activeInstances)
+        {
+            if (instance != null)
+            {
+                var connection = instance.GetComponent<IChatConnection>();
+                connection?.Disconnect();
+            }
+        }
+
+        yield return null;
+
         foreach (var instance in activeInstances)
         {
             if (instance != null)

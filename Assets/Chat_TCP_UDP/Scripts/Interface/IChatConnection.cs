@@ -6,11 +6,10 @@ public interface IChatConnection
     event Action<NetworkPacket> OnPacketReceived;
     event Action OnConnected;
     event Action OnDisconnected;
+    event Action<string> OnError;
+
     bool IsConnected { get; }
 
     Task SendMessageAsync(NetworkPacket packet);
     void Disconnect();
-
-    bool HasPayloadSizeLimit { get; }
-    int MaxPayloadSize { get; }
 }

@@ -16,4 +16,8 @@ public class UDPClientBootstrapper : MonoBehaviour
         inputHandler.Initialize(controller);
         connectionHandler.Initialize(controller);
     }
+    private void OnDestroy()
+    {
+        controller?.Dispose();
+    }
 }

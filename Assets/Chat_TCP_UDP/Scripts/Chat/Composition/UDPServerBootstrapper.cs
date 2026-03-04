@@ -13,4 +13,8 @@ public class UDPServerBootstrapper : MonoBehaviour
         controller = new ChatController(udpServer, chatUIView);
         inputHandler.Initialize(controller);
     }
+    private void OnDestroy()
+    {
+        controller?.Dispose();
+    }
 }

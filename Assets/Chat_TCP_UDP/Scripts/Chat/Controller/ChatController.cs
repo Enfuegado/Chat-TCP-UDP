@@ -15,6 +15,7 @@ public class ChatController
         this.view = view;
 
         connection.OnPacketReceived += HandlePacketReceived;
+        connection.OnError += HandleError;
     }
 
     public async Task Connect(string ip, int port)
@@ -36,12 +37,18 @@ public class ChatController
 
         var packet = new NetworkPacket(
             PacketType.Text,
-            Encoding.UTF8.GetBytes(message),
-            null
+            Encoding.UTF8.GetBytes(message)
         );
 
-        view.DisplayText(message);
-        await connection.SendMessageAsync(packet);
+        try
+        {
+            await connection.SendMessageAsync(packet);
+            view.DisplayText(message);
+        }
+        catch (Exception ex)
+        {
+            view.ShowError(ex.Message);
+        }
     }
 
     public async Task SendImage(string path)
@@ -57,20 +64,21 @@ public class ChatController
 
         byte[] data = await File.ReadAllBytesAsync(path);
 
-        if (connection.HasPayloadSizeLimit && data.Length > connection.MaxPayloadSize)
-        {
-            view.ShowError("File exceeds protocol size limit.");
-            return;
-        }
-
         var packet = new NetworkPacket(
             PacketType.Image,
             data,
             Path.GetFileName(path)
         );
 
-        view.DisplayImage(data);
-        await connection.SendMessageAsync(packet);
+        try
+        {
+            await connection.SendMessageAsync(packet);
+            view.DisplayImage(data);
+        }
+        catch (Exception ex)
+        {
+            view.ShowError(ex.Message);
+        }
     }
 
     public async Task SendFile(string path)
@@ -86,20 +94,21 @@ public class ChatController
 
         byte[] data = await File.ReadAllBytesAsync(path);
 
-        if (connection.HasPayloadSizeLimit && data.Length > connection.MaxPayloadSize)
-        {
-            view.ShowError("File exceeds protocol size limit.");
-            return;
-        }
-
         var packet = new NetworkPacket(
             PacketType.File,
             data,
             Path.GetFileName(path)
         );
 
-        view.DisplayFile(data, Path.GetFileName(path));
-        await connection.SendMessageAsync(packet);
+        try
+        {
+            await connection.SendMessageAsync(packet);
+            view.DisplayFile(data, Path.GetFileName(path));
+        }
+        catch (Exception ex)
+        {
+            view.ShowError(ex.Message);
+        }
     }
 
     private void HandlePacketReceived(NetworkPacket packet)
@@ -121,5 +130,18 @@ public class ChatController
                     break;
             }
         });
+    }
+
+    private void HandleError(string message)
+    {
+        MainThreadDispatcher.Enqueue(() =>
+        {
+            view.ShowError(message);
+        });
+    }
+    public void Dispose()
+    {
+        connection.OnPacketReceived -= HandlePacketReceived;
+        connection.OnError -= HandleError;
     }
 }
