@@ -11,57 +11,57 @@ public class ChatBootstrapper : MonoBehaviour
 
     private readonly List<GameObject> activeInstances = new List<GameObject>();
 
+    private ProtocolType currentProtocol = ProtocolType.TCP;
+
+    private Coroutine activeRoutine;
+
     void Start()
     {
-        if (NetworkConfig.Instance == null)
-        {
-            Debug.LogError("NetworkConfig not found.");
-            return;
-        }
-
-        if (NetworkConfig.Instance.Mode == AppMode.Single)
-        {
-            CreateInstance(NetworkConfig.Instance.Role);
-        }
-        else
-        {
-            StartCoroutine(StartLocalTest());
-        }
+        activeRoutine = StartCoroutine(StartDual());
     }
 
-    void CreateInstance(Role role)
+    IEnumerator StartDual()
+    {
+        CreateServer();
+        yield return new WaitForSeconds(0.3f);
+        CreateClient();
+    }
+
+    void CreateServer()
     {
         GameObject instance;
 
-        if (NetworkConfig.Instance.Protocol == ProtocolType.TCP)
-        {
-            instance = (role == Role.Server)
-                ? Instantiate(tcpServerPrefab)
-                : Instantiate(tcpClientPrefab);
-        }
+        if (currentProtocol == ProtocolType.TCP)
+            instance = Instantiate(tcpServerPrefab);
         else
-        {
-            instance = (role == Role.Server)
-                ? Instantiate(udpServerPrefab)
-                : Instantiate(udpClientPrefab);
-        }
+            instance = Instantiate(udpServerPrefab);
+
+        activeInstances.Add(instance);
+    }
+
+    void CreateClient()
+    {
+        GameObject instance;
+
+        if (currentProtocol == ProtocolType.TCP)
+            instance = Instantiate(tcpClientPrefab);
+        else
+            instance = Instantiate(udpClientPrefab);
 
         activeInstances.Add(instance);
     }
 
     public void SwitchProtocol()
     {
-        NetworkConfig.Instance.Protocol =
-            (NetworkConfig.Instance.Protocol == ProtocolType.TCP)
+        currentProtocol =
+            (currentProtocol == ProtocolType.TCP)
             ? ProtocolType.UDP
             : ProtocolType.TCP;
 
-        StartCoroutine(SwitchAfterCleanup());
-    }
+        if (activeRoutine != null)
+            StopCoroutine(activeRoutine);
 
-    public void ReturnToMenu()
-    {
-        StartCoroutine(ReturnAfterCleanup());
+        activeRoutine = StartCoroutine(SwitchAfterCleanup());
     }
 
     private IEnumerator SwitchAfterCleanup()
@@ -85,44 +85,6 @@ public class ChatBootstrapper : MonoBehaviour
 
         activeInstances.Clear();
 
-        if (NetworkConfig.Instance.Mode == AppMode.Single)
-        {
-            CreateInstance(NetworkConfig.Instance.Role);
-        }
-        else
-        {
-            StartCoroutine(StartLocalTest());
-        }
-    }
-
-    private IEnumerator ReturnAfterCleanup()
-    {
-        foreach (var instance in activeInstances)
-        {
-            if (instance != null)
-            {
-                var connection = instance.GetComponent<IChatConnection>();
-                connection?.Disconnect();
-            }
-        }
-
-        yield return null;
-
-        foreach (var instance in activeInstances)
-        {
-            if (instance != null)
-                Destroy(instance);
-        }
-
-        activeInstances.Clear();
-
-        UnityEngine.SceneManagement.SceneManager.LoadScene("MainMenu");
-    }
-
-    IEnumerator StartLocalTest()
-    {
-        CreateInstance(Role.Server);
-        yield return new WaitForSeconds(0.3f);
-        CreateInstance(Role.Client);
+        activeRoutine = StartCoroutine(StartDual());
     }
 }

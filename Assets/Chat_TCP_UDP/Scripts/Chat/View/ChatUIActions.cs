@@ -15,17 +15,4 @@ public class ChatUIActions : MonoBehaviour
             Debug.LogError("ChatBootstrapper not found.");
         }
     }
-    public void ReturnToMenu()
-{
-    ChatBootstrapper bootstrapper = FindObjectOfType<ChatBootstrapper>();
-
-    if (bootstrapper != null)
-    {
-        bootstrapper.ReturnToMenu();
-    }
-    else
-    {
-        Debug.LogError("ChatBootstrapper not found.");
-    }
-}
 }

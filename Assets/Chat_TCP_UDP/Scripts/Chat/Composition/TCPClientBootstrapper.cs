@@ -9,14 +9,17 @@ public class TCPClientBootstrapper : MonoBehaviour
 
     private ChatController controller;
 
-    void Start()
+    private async void Start()
     {
         controller = new ChatController(tcpClient, chatUIView);
 
         inputHandler.Initialize(controller);
         connectionHandler.Initialize(controller);
+
+        await controller.Connect("127.0.0.1", 7777);
     }
-        private void OnDestroy()
+
+    private void OnDestroy()
     {
         controller?.Dispose();
     }

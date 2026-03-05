@@ -5,4 +5,6 @@ public interface IChatView
     void DisplayFile(byte[] fileData, string fileName);
 
     void ShowError(string message);
+
+    void SetConnectionStatus(string status);
 }

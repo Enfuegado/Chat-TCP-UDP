@@ -32,41 +32,54 @@ public class UDPClient : MonoBehaviour, IClient
             udpClient = new UdpClient();
             remoteEndPoint = new IPEndPoint(IPAddress.Parse(ipAddress), port);
 
-            IsConnected = true;
-
             _ = ReceiveLoop();
-
-            var connectPacket = new NetworkPacket(
-                PacketType.Connect,
-                Array.Empty<byte>()
-            );
-
-            await SendMessageAsync(connectPacket);
-
-            OnConnected?.Invoke();
+            _ = ConnectionRetryLoop();
         }
         catch (Exception ex)
         {
-            OnError?.Invoke("Failed to connect.");
+            OnError?.Invoke("Failed to start client.");
             Debug.LogWarning(ex.Message);
             Disconnect();
         }
-        finally
+    }
+
+    private async Task ConnectionRetryLoop()
+    {
+        while (!IsConnected && udpClient != null)
         {
-            isConnecting = false;
+            try
+            {
+                var connectPacket = new NetworkPacket(
+                    PacketType.Connect,
+                    Array.Empty<byte>()
+                );
+
+                await SendRaw(connectPacket);
+            }
+            catch { }
+
+            await Task.Delay(1000);
         }
+
+        isConnecting = false;
     }
 
     private async Task ReceiveLoop()
     {
         try
         {
-            while (IsConnected)
+            while (udpClient != null)
             {
                 UdpReceiveResult result = await udpClient.ReceiveAsync();
 
                 NetworkPacket packet =
                     PacketSerializer.Deserialize(result.Buffer);
+
+                if (!IsConnected)
+                {
+                    IsConnected = true;
+                    OnConnected?.Invoke();
+                }
 
                 OnPacketReceived?.Invoke(packet);
             }
@@ -76,7 +89,9 @@ public class UDPClient : MonoBehaviour, IClient
         }
         catch (Exception ex)
         {
-            OnError?.Invoke("Connection lost.");
+            if (IsConnected)
+                OnError?.Invoke("Connection lost.");
+
             Debug.LogWarning($"[UDP Client] Receive loop stopped: {ex.Message}");
         }
         finally
@@ -90,21 +105,17 @@ public class UDPClient : MonoBehaviour, IClient
         if (!IsConnected || udpClient == null)
             throw new InvalidOperationException("UDP client is not connected.");
 
+        await SendRaw(packet);
+    }
+
+    private async Task SendRaw(NetworkPacket packet)
+    {
         byte[] data = PacketSerializer.Serialize(packet);
 
         if (data.Length > MaxPayloadSize)
             throw new InvalidOperationException("File exceeds protocol size limit (60KB).");
 
-        try
-        {
-            await udpClient.SendAsync(data, data.Length, remoteEndPoint);
-        }
-        catch (Exception ex)
-        {
-            OnError?.Invoke("Failed to send message.");
-            Debug.LogWarning(ex.Message);
-            Disconnect();
-        }
+        await udpClient.SendAsync(data, data.Length, remoteEndPoint);
     }
 
     public void Disconnect()

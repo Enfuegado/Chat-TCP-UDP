@@ -8,12 +8,16 @@ public class TCPServerBootstrapper : MonoBehaviour
 
     private ChatController controller;
 
-    void Start()
+    private async void Start()
     {
         controller = new ChatController(tcpServer, chatUIView);
+
         inputHandler.Initialize(controller);
+
+        await tcpServer.StartServer(7777);
     }
-        private void OnDestroy()
+
+    private void OnDestroy()
     {
         controller?.Dispose();
     }

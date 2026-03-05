@@ -22,7 +22,7 @@ public class UDPServer : MonoBehaviour, IServer
 
     public Task StartServer(int port)
     {
-        if (IsConnected || isStarting)
+        if (udpServer != null || isStarting)
             return Task.CompletedTask;
 
         isStarting = true;
@@ -30,10 +30,7 @@ public class UDPServer : MonoBehaviour, IServer
         try
         {
             udpServer = new UdpClient(port);
-            IsConnected = true;
-
             _ = ReceiveLoop();
-            OnConnected?.Invoke();
         }
         catch (Exception ex)
         {
@@ -53,7 +50,7 @@ public class UDPServer : MonoBehaviour, IServer
     {
         try
         {
-            while (IsConnected)
+            while (udpServer != null)
             {
                 UdpReceiveResult result = await udpServer.ReceiveAsync();
                 remoteEndPoint = result.RemoteEndPoint;
@@ -62,7 +59,23 @@ public class UDPServer : MonoBehaviour, IServer
                     PacketSerializer.Deserialize(result.Buffer);
 
                 if (packet.Type == PacketType.Connect)
+                {
+                    if (!IsConnected)
+                    {
+                        IsConnected = true;
+                        OnConnected?.Invoke();
+                    }
+
+                    var ackPacket = new NetworkPacket(
+                        PacketType.Connect,
+                        Array.Empty<byte>()
+                    );
+
+                    byte[] ackData = PacketSerializer.Serialize(ackPacket);
+                    await udpServer.SendAsync(ackData, ackData.Length, remoteEndPoint);
+
                     continue;
+                }
 
                 OnPacketReceived?.Invoke(packet);
             }
@@ -91,22 +104,15 @@ public class UDPServer : MonoBehaviour, IServer
         if (data.Length > MaxPayloadSize)
             throw new InvalidOperationException("File exceeds protocol size limit (60KB).");
 
-        try
-        {
-            await udpServer.SendAsync(data, data.Length, remoteEndPoint);
-        }
-        catch (Exception ex)
-        {
-            OnError?.Invoke("Failed to send message.");
-            Debug.LogWarning(ex.Message);
-            Disconnect();
-        }
+        await udpServer.SendAsync(data, data.Length, remoteEndPoint);
     }
 
     public void Disconnect()
     {
-        if (!IsConnected && !isStarting)
+        if (udpServer == null && !isStarting)
             return;
+
+        bool wasConnected = IsConnected;
 
         IsConnected = false;
         isStarting = false;
@@ -115,7 +121,8 @@ public class UDPServer : MonoBehaviour, IServer
         udpServer?.Dispose();
         udpServer = null;
 
-        OnDisconnected?.Invoke();
+        if (wasConnected)
+            OnDisconnected?.Invoke();
     }
 
     private void OnDestroy()

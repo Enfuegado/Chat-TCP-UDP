@@ -9,8 +9,14 @@ public class ChatUIView : MonoBehaviour, IChatView
     [SerializeField] private GameObject imagePrefab;
     [SerializeField] private GameObject filePrefab;
 
+    [Header("Connection Status")]
+    [SerializeField] private TMP_Text connectionStatusText;
+
     [Header("Error Popup")]
     [SerializeField] private ErrorPopupUI errorPopup;
+
+    private Color connectedColor = new Color32(0, 168, 13, 255);
+    private Color disconnectedColor = new Color32(168, 3, 0, 255);
 
     public void DisplayText(string message)
     {
@@ -85,5 +91,21 @@ public class ChatUIView : MonoBehaviour, IChatView
         }
 
         errorPopup.Show(message);
+    }
+
+    public void SetConnectionStatus(string status)
+    {
+        if (connectionStatusText == null)
+        {
+            Debug.LogWarning("ConnectionStatusText not assigned in ChatUIView");
+            return;
+        }
+
+        connectionStatusText.text = status;
+
+        if (status == "Connected")
+            connectionStatusText.color = connectedColor;
+        else
+            connectionStatusText.color = disconnectedColor;
     }
 }

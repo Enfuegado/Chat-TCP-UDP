@@ -16,6 +16,11 @@ public class ChatController
 
         connection.OnPacketReceived += HandlePacketReceived;
         connection.OnError += HandleError;
+
+        connection.OnConnected += HandleConnected;
+        connection.OnDisconnected += HandleDisconnected;
+
+        view.SetConnectionStatus("Disconnected");
     }
 
     public async Task Connect(string ip, int port)
@@ -139,9 +144,28 @@ public class ChatController
             view.ShowError(message);
         });
     }
+
+    private void HandleConnected()
+    {
+        MainThreadDispatcher.Enqueue(() =>
+        {
+            view.SetConnectionStatus("Connected");
+        });
+    }
+
+    private void HandleDisconnected()
+    {
+        MainThreadDispatcher.Enqueue(() =>
+        {
+            view.SetConnectionStatus("Disconnected");
+        });
+    }
+
     public void Dispose()
     {
         connection.OnPacketReceived -= HandlePacketReceived;
         connection.OnError -= HandleError;
+        connection.OnConnected -= HandleConnected;
+        connection.OnDisconnected -= HandleDisconnected;
     }
 }
