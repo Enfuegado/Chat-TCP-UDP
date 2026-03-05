@@ -20,7 +20,7 @@ public class ChatController
         connection.OnConnected += HandleConnected;
         connection.OnDisconnected += HandleDisconnected;
 
-        view.SetConnectionStatus("Disconnected");
+        view.SetConnectionStatus(ConnectionStatus.Disconnected);
     }
 
     public async Task Connect(string ip, int port)
@@ -120,6 +120,9 @@ public class ChatController
     {
         MainThreadDispatcher.Enqueue(() =>
         {
+            if (view == null)
+                return;
+
             switch (packet.Type)
             {
                 case PacketType.Text:
@@ -141,6 +144,9 @@ public class ChatController
     {
         MainThreadDispatcher.Enqueue(() =>
         {
+            if (view == null)
+                return;
+
             view.ShowError(message);
         });
     }
@@ -149,7 +155,10 @@ public class ChatController
     {
         MainThreadDispatcher.Enqueue(() =>
         {
-            view.SetConnectionStatus("Connected");
+            if (view == null)
+                return;
+
+            view.SetConnectionStatus(ConnectionStatus.Connected);
         });
     }
 
@@ -157,7 +166,10 @@ public class ChatController
     {
         MainThreadDispatcher.Enqueue(() =>
         {
-            view.SetConnectionStatus("Disconnected");
+            if (view == null)
+                return;
+
+            view.SetConnectionStatus(ConnectionStatus.Disconnected);
         });
     }
 
