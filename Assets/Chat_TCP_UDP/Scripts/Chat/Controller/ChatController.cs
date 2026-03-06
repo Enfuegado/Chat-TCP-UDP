@@ -48,7 +48,8 @@ public class ChatController
         try
         {
             await connection.SendMessageAsync(packet);
-            view.DisplayText(message);
+            bool amClient = connection is IClient;
+            view.DisplayText(message, amClient ? "[client]" : "[server]", true);
         }
         catch (Exception ex)
         {
@@ -78,7 +79,8 @@ public class ChatController
         try
         {
             await connection.SendMessageAsync(packet);
-            view.DisplayImage(data);
+            bool amClient = connection is IClient;
+            view.DisplayImage(data, amClient ? "[client]" : "[server]", true);
         }
         catch (Exception ex)
         {
@@ -108,7 +110,8 @@ public class ChatController
         try
         {
             await connection.SendMessageAsync(packet);
-            view.DisplayFile(data, Path.GetFileName(path));
+            bool amClient = connection is IClient;
+            view.DisplayFile(data, Path.GetFileName(path), amClient ? "[client]" : "[server]", true);
         }
         catch (Exception ex)
         {
@@ -123,18 +126,20 @@ public class ChatController
             if (view == null)
                 return;
 
+            bool amClient = connection is IClient;
+
             switch (packet.Type)
             {
                 case PacketType.Text:
-                    view.DisplayText(Encoding.UTF8.GetString(packet.Data));
+                    view.DisplayText(Encoding.UTF8.GetString(packet.Data), amClient ? "[server]" : "[client]", false);
                     break;
 
                 case PacketType.Image:
-                    view.DisplayImage(packet.Data);
+                    view.DisplayImage(packet.Data, amClient ? "[server]" : "[client]", false);
                     break;
 
                 case PacketType.File:
-                    view.DisplayFile(packet.Data, packet.FileName);
+                    view.DisplayFile(packet.Data, packet.FileName, amClient ? "[server]" : "[client]", false);
                     break;
             }
         });

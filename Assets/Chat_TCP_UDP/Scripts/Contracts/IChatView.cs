@@ -1,8 +1,8 @@
 public interface IChatView
 {
-    void DisplayText(string message);
-    void DisplayImage(byte[] imageData);
-    void DisplayFile(byte[] fileData, string fileName);
+    void DisplayText(string message, string senderLabel, bool isMine);
+    void DisplayImage(byte[] imageData, string senderLabel, bool isMine);
+    void DisplayFile(byte[] fileData, string fileName, string senderLabel, bool isMine);
 
     void ShowError(string message);
 
