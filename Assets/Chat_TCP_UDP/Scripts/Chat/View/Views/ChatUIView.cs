@@ -214,7 +214,7 @@ public class ChatUIView : MonoBehaviour, IChatView
 
         // ── Ancho del bubble proporcional al contenedor ──────────────────────
         RectTransform contentRect = content as RectTransform;
-        float bubbleTargetWidth = contentRect.rect.width * 0.62f;
+        float bubbleTargetWidth = contentRect.rect.width * 0.88f;
 
         LayoutElement bubbleLayout = bubble.GetComponent<LayoutElement>();
         if (bubbleLayout == null)
