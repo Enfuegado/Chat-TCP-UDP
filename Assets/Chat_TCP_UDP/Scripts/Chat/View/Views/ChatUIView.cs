@@ -212,7 +212,6 @@ public class ChatUIView : MonoBehaviour, IChatView
         GameObject row = CreateRow(isMine);
         GameObject bubble = CreateBubble(row, isMine);
 
-        // ── Ancho del bubble proporcional al contenedor ──────────────────────
         RectTransform contentRect = content as RectTransform;
         float bubbleTargetWidth = contentRect.rect.width * 0.88f;
 
@@ -222,12 +221,10 @@ public class ChatUIView : MonoBehaviour, IChatView
         bubbleLayout.minWidth     = bubbleTargetWidth;
         bubbleLayout.preferredWidth = bubbleTargetWidth;
 
-        // ── Padding interno con más aire ─────────────────────────────────────
         VerticalLayoutGroup vlg = bubble.GetComponent<VerticalLayoutGroup>();
         if (vlg != null)
             vlg.padding = new RectOffset(12, 12, 10, 10);
 
-        // ── Etiqueta del remitente alineada al lado correcto ─────────────────
         GameObject labelGO = new GameObject("Label", typeof(RectTransform));
         labelGO.transform.SetParent(bubble.transform, false);
 
@@ -242,10 +239,9 @@ public class ChatUIView : MonoBehaviour, IChatView
         label.color     = new Color32(80, 80, 80, 255);
         label.alignment = isMine ? TextAlignmentOptions.Right : TextAlignmentOptions.Left;
 
-        // ── Prefab del archivo con tamaño proporcional al bubble ─────────────
         GameObject fileGO = Instantiate(filePrefab, bubble.transform);
 
-        float innerWidth = bubbleTargetWidth - 24f; // descontando padding lateral
+        float innerWidth = bubbleTargetWidth - 24f;
 
         LayoutElement fileLayout = fileGO.GetComponent<LayoutElement>();
         if (fileLayout == null)
@@ -255,7 +251,6 @@ public class ChatUIView : MonoBehaviour, IChatView
         fileLayout.minHeight     = 64f;
         fileLayout.preferredHeight = 64f;
 
-        // ── Texto interno legible con ellipsis si el nombre es largo ─────────
         foreach (TMP_Text t in fileGO.GetComponentsInChildren<TMP_Text>())
         {
             t.fontSize     = 12;
