@@ -405,8 +405,8 @@ Chat-TCP-UDP/
 
 ## Contactos
 
-Paula Castro — [@PonkinaDev](https://github.com/PonkinaDev)  
 Jaime Barragán — [@Enfuegado](https://github.com/Enfuegado)
+Paula Castro — [@PonkinaDev](https://github.com/PonkinaDev)  
 
 ----------
 
