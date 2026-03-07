@@ -212,24 +212,55 @@ public class ChatUIView : MonoBehaviour, IChatView
         GameObject row = CreateRow(isMine);
         GameObject bubble = CreateBubble(row, isMine);
 
+        // ── Ancho del bubble proporcional al contenedor ──────────────────────
+        RectTransform contentRect = content as RectTransform;
+        float bubbleTargetWidth = contentRect.rect.width * 0.62f;
+
+        LayoutElement bubbleLayout = bubble.GetComponent<LayoutElement>();
+        if (bubbleLayout == null)
+            bubbleLayout = bubble.AddComponent<LayoutElement>();
+        bubbleLayout.minWidth     = bubbleTargetWidth;
+        bubbleLayout.preferredWidth = bubbleTargetWidth;
+
+        // ── Padding interno con más aire ─────────────────────────────────────
+        VerticalLayoutGroup vlg = bubble.GetComponent<VerticalLayoutGroup>();
+        if (vlg != null)
+            vlg.padding = new RectOffset(12, 12, 10, 10);
+
+        // ── Etiqueta del remitente alineada al lado correcto ─────────────────
         GameObject labelGO = new GameObject("Label", typeof(RectTransform));
         labelGO.transform.SetParent(bubble.transform, false);
-        TMP_Text label = labelGO.AddComponent<TextMeshProUGUI>();
-        label.richText = true;
-        label.text = "<b>" + senderLabel + "</b>";
-        label.fontSize = 11;
-        label.color = new Color32(80, 80, 80, 255);
 
+        ContentSizeFitter labelFitter = labelGO.AddComponent<ContentSizeFitter>();
+        labelFitter.verticalFit   = ContentSizeFitter.FitMode.PreferredSize;
+        labelFitter.horizontalFit = ContentSizeFitter.FitMode.Unconstrained;
+
+        TMP_Text label = labelGO.AddComponent<TextMeshProUGUI>();
+        label.richText  = true;
+        label.text      = "<b>" + senderLabel + "</b>";
+        label.fontSize  = 11;
+        label.color     = new Color32(80, 80, 80, 255);
+        label.alignment = isMine ? TextAlignmentOptions.Right : TextAlignmentOptions.Left;
+
+        // ── Prefab del archivo con tamaño proporcional al bubble ─────────────
         GameObject fileGO = Instantiate(filePrefab, bubble.transform);
+
+        float innerWidth = bubbleTargetWidth - 24f; // descontando padding lateral
 
         LayoutElement fileLayout = fileGO.GetComponent<LayoutElement>();
         if (fileLayout == null)
             fileLayout = fileGO.AddComponent<LayoutElement>();
-        fileLayout.minWidth = 150;
-        fileLayout.minHeight = 50;
+        fileLayout.minWidth      = innerWidth;
+        fileLayout.preferredWidth  = innerWidth;
+        fileLayout.minHeight     = 64f;
+        fileLayout.preferredHeight = 64f;
 
+        // ── Texto interno legible con ellipsis si el nombre es largo ─────────
         foreach (TMP_Text t in fileGO.GetComponentsInChildren<TMP_Text>())
-            t.fontSize = 11;
+        {
+            t.fontSize     = 12;
+            t.overflowMode = TextOverflowModes.Ellipsis;
+        }
 
         FileMessageUI fileUI = fileGO.GetComponent<FileMessageUI>();
         if (fileUI == null)
@@ -264,12 +295,12 @@ public class ChatUIView : MonoBehaviour, IChatView
         switch (status)
         {
             case ConnectionStatus.Connected:
-                connectionStatusText.text = "Connected";
+                connectionStatusText.text  = "Connected";
                 connectionStatusText.color = connectedColor;
                 break;
 
             case ConnectionStatus.Disconnected:
-                connectionStatusText.text = "Disconnected";
+                connectionStatusText.text  = "Disconnected";
                 connectionStatusText.color = disconnectedColor;
                 break;
         }
