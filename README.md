@@ -11,7 +11,7 @@
   <h3 align="center">Chat TCP/UDP</h3>
 
   <p align="center">
-    Aplicación de chat en tiempo real con soporte para TCP y UDP, envío de mensajes, imágenes y archivos — construida en Unity con C#.
+    Aplicación de chat en tiempo real con soporte para TCP y UDP, envío de mensajes, imágenes y archivos, construida en Unity con C#.
     <br />
     <a href="https://github.com/Enfuegado/Chat-TCP-UDP-base"><strong>Explorar el código »</strong></a>
   </p>
