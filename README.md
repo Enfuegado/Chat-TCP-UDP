@@ -50,7 +50,7 @@
 
 Características principales:
 
-- Cambio entre **TCP y UDP en tiempo de ejecución** sin reiniciar la sesión, mediante un botón en la interfaz.
+- Cambio entre **TCP y UDP en tiempo de ejecución**, reinicializando la conexión mediante un botón en la interfaz.
 - **Protocolo binario personalizado** (`NetworkPacket` + `PacketSerializer`) que serializa cualquier tipo de dato sin el overhead de codificaciones como Base64.
 - **Handshake manual sobre UDP** para simular el establecimiento de conexión que ese protocolo no provee de forma nativa.
 - Despacho seguro de eventos de red al **hilo principal de Unity** mediante `MainThreadDispatcher`.
@@ -69,7 +69,11 @@ Características principales:
 
 ## Arquitectura
 
-El sistema sigue un modelo **Cliente <-> Servidor** donde ambos roles corren dentro de la misma escena de Unity como GameObjects separados, instanciados dinámicamente por `ChatBootstrapper` según el protocolo activo.
+El sistema sigue un modelo **Cliente <-> Servidor** con una única conexión cliente-servidor; el servidor acepta solo un cliente conectado a la vez. El proyecto utiliza un flujo de escenas donde `MenuScene` carga un menú de selección de protocolo y, posteriormente, `ChatScene`. En esta última, cliente y servidor se ejecutan como GameObjects separados instanciados dinámicamente por `ChatBootstrapper` según el protocolo activo.
+
+El protocolo elegido en el menú se almacena en `ProtocolSelection`, una clase compartida que mantiene el estado del protocolo activo entre escenas. Al iniciar `ChatScene`, `ChatBootstrapper` consulta este valor para instanciar dinámicamente los prefabs de red correspondientes.
+
+El siguiente diagrama representa la arquitectura interna de `ChatScene`:
 
 ```
 +----------------------------------------------------------+
@@ -174,8 +178,7 @@ while (!IsConnected && udpClient != null)
 El servidor responde con su propio paquete `Connect` como acuse de recibo y almacena el `IPEndPoint` remoto para los envíos siguientes.
 
 ### Límite de tamaño en UDP
-
-UDP permite hasta 65 507 bytes de payload sobre IPv4, pero en redes con MTU estándar de 1 500 bytes los datagramas grandes se fragmentan a nivel IP. La pérdida de cualquier fragmento invalida el datagrama completo. Por eso se estableció un límite de **60 KB por paquete**:
+UDP permite hasta 65 507 bytes de payload sobre IPv4. Sin embargo, en redes con MTU estándar de aproximadamente 1 500 bytes, los datagramas grandes se fragmentan a nivel IP. La pérdida de cualquier fragmento invalida el datagrama completo. Por esta razón se estableció un límite de **60 KB por paquete**, manteniéndose dentro del tamaño máximo permitido por UDP aunque estos datagramas puedan fragmentarse en redes con MTU estándar:
 
 ```csharp
 private const int MaxPayloadSize = 60 * 1024;
@@ -241,7 +244,7 @@ var packet   = new NetworkPacket(PacketType.File, data, Path.GetFileName(path));
 await connection.SendMessageAsync(packet);
 ```
 
-El receptor identifica el tipo de paquete y llama al método de vista correspondiente (`DisplayText`, `DisplayImage`, `DisplayFile`). Para archivos recibidos, se muestra un componente con nombre, tamaño en KB y botón de descarga vía `StandaloneFileBrowser`.
+El paquete recibido es emitido por la capa de red mediante el evento `OnPacketReceived`, que es manejado por `ChatController`. El controlador interpreta el tipo de paquete y delega la actualización de la interfaz a la vista (`DisplayText`, `DisplayImage`, `DisplayFile`). Para archivos recibidos, se muestra un componente con nombre, tamaño en KB y un botón de descarga utilizando `StandaloneFileBrowser`.
 
 ----------
 
@@ -271,13 +274,19 @@ https://github.com/gkngkc/UnityStandaloneFileBrowser
 
 3. Esperar a que Unity importe todos los assets y paquetes.
 
-4. Abrir la escena principal desde:
+4. Abrir la escena inicial del proyecto desde:
 
     ```
-    Assets/Scenes/MainScene.unity
+    Assets/Scenes/MenuScene.unity
     ```
 
-5. Seleccionar el GameObject `ChatBootstrapper` en la jerarquía y verificar que los cuatro prefabs estén asignados en el Inspector:
+5. Elegir **TCP** o **UDP** en el menú. Esto cargará automáticamente la escena de chat:
+
+    ```
+    Assets/Scenes/Chat/ChatScene.unity
+    ```
+
+6. Al iniciar `ChatScene`, el `ChatBootstrapper` instancia dinámicamente los prefabs de red correspondientes al protocolo seleccionado. Verificar en el Inspector que los cuatro prefabs estén asignados correctamente:
 
     | Campo | Prefab esperado |
     |---|---|
@@ -286,7 +295,7 @@ https://github.com/gkngkc/UnityStandaloneFileBrowser
     | `udpClientPrefab` | UDP Client |
     | `udpServerPrefab` | UDP Server |
 
-6. Presionar **Play**. El servidor y el cliente se inicializan automáticamente.
+7. Cliente y servidor se inicializan automáticamente dentro de la escena para pruebas locales.
 
 ----------
 
@@ -369,7 +378,7 @@ Chat-TCP-UDP/
 │   │   │   ├── ProtocolSelection.cs
 │   │   │   └── MainThreadDispatcher.cs
 │   │   ├── Menu/
-│   │   │   └── ProtocolMenuController/
+│   │   │   └── ProtocolMenuController.cs
 │   │   └── Networking/
 │   │       ├── Protocol/
 │   │       │   ├── NetworkPacket.cs
