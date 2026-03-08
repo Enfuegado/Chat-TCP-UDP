@@ -154,7 +154,6 @@ public interface IClient : IChatConnection { Task ConnectToServer(string ip, int
 Usa `TcpListener` para aceptar la conexión y un `NetworkStream` para la transferencia de datos. La deserialización es completamente asíncrona mediante `ReadExactAsync`, que garantiza leer exactamente los bytes esperados sin condiciones de carrera:
 
 ```csharp
-// TCPServer.cs
 tcpListener = new TcpListener(IPAddress.Any, port);
 tcpListener.Start();
 connectedClient = await tcpListener.AcceptTcpClientAsync();
@@ -166,7 +165,6 @@ networkStream   = connectedClient.GetStream();
 UDP no tiene estado de conexión, por lo que se implementó un **handshake manual** con `PacketType.Connect`. El cliente envía paquetes de conexión cada segundo hasta recibir un ACK del servidor:
 
 ```csharp
-// UDPClient.cs
 while (!IsConnected && udpClient != null)
 {
     var connectPacket = new NetworkPacket(PacketType.Connect, Array.Empty<byte>());
